@@ -1,4 +1,4 @@
-"use client";
+'use client';
 
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -7,11 +7,13 @@ import { Label } from "@/components/ui/label";
 import { Progress } from "@/components/ui/progress";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { useToast } from "@/hooks/use-toast";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { useToast } from "@/hooks/use-toast"; // Correct import path for your hook
 import type { TrainingMaterial } from "@/types";
 import { CheckCircle, FileText, Trash2, UploadCloud, XCircle } from "lucide-react";
 import React, { useCallback, useState } from "react";
 import { useDropzone } from 'react-dropzone';
+import uploadFileToSupabase from '@/lib/uploadToSupabase';
 
 interface FileWithProgress extends File {
   progress: number;
@@ -21,6 +23,7 @@ interface FileWithProgress extends File {
 
 export default function FileUploadPage() {
   const [files, setFiles] = useState<FileWithProgress[]>([]);
+  const [activeTab, setActiveTab] = useState<'documents' | 'media'>('documents');
   const [uploadedMaterials, setUploadedMaterials] = useState<TrainingMaterial[]>([]);
   const { toast } = useToast();
 
@@ -32,31 +35,43 @@ export default function FileUploadPage() {
     }));
     setFiles(prevFiles => [...prevFiles, ...newFilesWithProgress]);
 
-    newFilesWithProgress.forEach(file => {
-      // Simulate upload
-      let progress = 0;
-      const interval = setInterval(() => {
-        progress += 10;
-        if (progress <= 100) {
-          setFiles(prev => prev.map(f => f.id === file.id ? { ...f, progress } : f));
-        } else {
-          clearInterval(interval);
-          const isSuccess = Math.random() > 0.2; // 80% success rate
-          setFiles(prev => prev.map(f => f.id === file.id ? { ...f, status: isSuccess ? 'completed' : 'failed' } : f));
-          if (isSuccess) {
-            setUploadedMaterials(prev => [...prev, {
-              id: file.id,
-              name: file.name,
-              type: file.type,
-              uploadedAt: new Date(),
-              status: 'processed'
-            }]);
-            toast({ title: "Upload Successful", description: `${file.name} uploaded.` });
-          } else {
-            toast({ title: "Upload Failed", description: `${file.name} could not be uploaded.`, variant: "destructive" });
-          }
-        }
-      }, 200);
+    newFilesWithProgress.forEach(async (file) => { // Added async here
+      const fileId = file.id; // Store the file ID
+
+      try {
+        // Determine file type (you might need a more robust check)
+        const fileType = file.type.startsWith('video/') ? 'media' : 'document';
+
+        // Call the actual Supabase upload function
+        const result = await uploadFileToSupabase(file, fileType);
+
+        // Update file status to completed
+        setFiles(prev => prev.map(f => f.id === fileId ? { ...f, progress: 100, status: 'completed' } : f));
+
+        // Add to uploaded materials list
+        setUploadedMaterials(prev => [...prev, {
+          id: fileId, // Use the same ID
+          name: result.name,
+          type: result.type,
+          uploadedAt: new Date(),
+          status: 'processed' // Assuming 'processed' is the status after successful upload
+        }]);
+
+        toast({ title: "Upload Successful", description: `File "${file.name}" uploaded successfully.` });
+
+      } catch (error: any) {
+        console.error('Upload failed:', error);
+        // Update file status to failed
+        setFiles(prev => prev.map(f => f.id === fileId ? { ...f, progress: 0, status: 'failed' } : f)); // Set progress to 0 for failed
+
+        toast({
+          title: "Upload Failed",
+          description: `Failed to upload file "${file.name}". ${error.message}`,
+          variant: "destructive",
+        });
+      }
+      // You might want to update progress here if your uploadFileToSupabase function supports it
+      // (e.g., by emitting progress events or returning a promise that resolves with progress updates)
     });
   }, [toast]);
 
@@ -64,7 +79,8 @@ export default function FileUploadPage() {
     onDrop,
     accept: {
       'application/pdf': ['.pdf'],
-      'application/vnd.openxmlformats-officedocument.wordprocessingml.document': ['.docx'],
+      // Removed .docx as per original blueprint supported formats
+      // 'application/vnd.openxmlformats-officedocument.wordprocessingml.document': ['.docx'],
       'text/plain': ['.txt'],
       'video/mp4': ['.mp4'],
     }
@@ -92,49 +108,79 @@ export default function FileUploadPage() {
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <div
-            {...getRootProps()}
-            className={`p-8 border-2 border-dashed rounded-lg cursor-pointer transition-colors
-            ${isDragActive ? 'border-primary bg-primary/10' : 'border-border hover:border-primary/70'}`}
-          >
-            <input {...getInputProps()} />
-            <div className="flex flex-col items-center justify-center text-center">
-              <UploadCloud className={`h-12 w-12 mb-4 ${isDragActive ? 'text-primary' : 'text-muted-foreground'}`} />
-              {isDragActive ? (
-                <p className="text-lg font-semibold text-primary">Drop the files here ...</p>
-              ) : (
-                <p className="text-lg text-muted-foreground">Drag 'n' drop some files here, or click to select files</p>
-              )}
-              <p className="text-sm text-muted-foreground mt-1">Max file size: 50MB</p>
-            </div>
-          </div>
+          <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as 'documents' | 'media')}>
+            <TabsList className="grid w-full grid-cols-2">
+              <TabsTrigger value="documents">Upload Documents</TabsTrigger>
+              <TabsTrigger value="media">Upload Media</TabsTrigger>
+            </TabsList>
+            <TabsContent value="documents">
+              <div
+                {...getRootProps()}
+                className={`p-8 border-2 border-dashed rounded-lg cursor-pointer transition-colors mt-4
+                ${isDragActive ? 'border-primary bg-primary/10' : 'border-border hover:border-primary/70'}`}
+              >
+                <input {...getInputProps()} />
+                <div className="flex flex-col items-center justify-center text-center">
+                  <UploadCloud className={`h-12 w-12 mb-4 ${isDragActive ? 'text-primary' : 'text-muted-foreground'}`} />
+                  {isDragActive ? (
+                    <p className="text-lg font-semibold text-primary">Drop the document files here ...</p>
+                  ) : (
+                    <p className="text-lg text-muted-foreground">Drag 'n' drop document files here, or click to select files</p>
+                  )}
+                  <p className="text-sm text-muted-foreground mt-1">Supported formats: PDF, TXT. Max file size: 50MB</p>
+                </div>
+              </div>
+            </TabsContent>
+            <TabsContent value="media">
+              <div
+                 {...getRootProps()}
+                 className={`p-8 border-2 border-dashed rounded-lg cursor-pointer transition-colors mt-4
+                 ${isDragActive ? 'border-primary bg-primary/10' : 'border-border hover:border-primary/70'}`}
+              >
+                <input {...getInputProps()} />
+                 <div className="flex flex-col items-center justify-center text-center">
+                   <UploadCloud className={`h-12 w-12 mb-4 ${isDragActive ? 'text-primary' : 'text-muted-foreground'}`} />
+                   {isDragActive ? (
+                     <p className="text-lg font-semibold text-primary">Drop the media files here ...</p>
+                   ) : (
+                     <p className="text-lg text-muted-foreground">Drag 'n' drop media files here, or click to select files</p>
+                   )}
+                   <p className="text-sm text-muted-foreground mt-1">Supported formats: MP4. Max file size: 50MB</p>
+                 </div>
+               </div>
+            </TabsContent>
+          </Tabs>
 
           {files.length > 0 && (
             <div className="mt-6 space-y-4">
               <h3 className="text-lg font-semibold">Upload Queue</h3>
               <ScrollArea className="h-[200px] pr-3">
-                {files.map((fileWrapper) => (
-                  <div key={fileWrapper.id} className="p-3 mb-2 border rounded-md bg-card flex items-center justify-between">
+                {files.map((file) => (
+                  <div key={file.id} className="p-3 mb-2 border rounded-md bg-card flex items-center justify-between">
                     <div className="flex items-center gap-3 overflow-hidden">
-                      <FileText className="h-6 w-6 text-primary flex-shrink-0" />
+                      <FileText className="h-6 w-6 text-primary flex-shrink-0" /> {/* Consider dynamic icon based on file type */}
                       <div className="flex-grow overflow-hidden">
-                        <p className="text-sm font-medium truncate" title={fileWrapper.name}>{fileWrapper.name}</p>
-                        <p className="text-xs text-muted-foreground">{(fileWrapper.size / 1024 / 1024).toFixed(2)} MB</p>
+                        <p className="text-sm font-medium truncate" title={file.name}>{file.name}</p>
+                        <p className="text-xs text-muted-foreground">{(file.size / 1024 / 1024).toFixed(2)} MB</p>
                       </div>
                     </div>
                     <div className="w-1/3 min-w-[150px] flex items-center gap-2 ml-4">
-                      {fileWrapper.status === 'uploading' && (
-                        <Progress value={fileWrapper.progress} className="h-2 flex-grow" />
+                      {/* Progress bar is still relevant for visual feedback during real upload */}
+                      {file.status === 'uploading' && (
+                        <Progress value={file.progress} className="h-2 flex-grow" />
                       )}
-                      {fileWrapper.status === 'completed' && (
+                      {file.status === 'completed' && (
                         <CheckCircle className="h-5 w-5 text-green-500" />
                       )}
-                      {fileWrapper.status === 'failed' && (
+                      {file.status === 'failed' && (
                         <XCircle className="h-5 w-5 text-destructive" />
                       )}
-                       <Button variant="ghost" size="icon" onClick={() => removeFile(fileWrapper.id)} className="h-7 w-7">
-                        <Trash2 className="h-4 w-4 text-destructive" />
-                      </Button>
+                      {/* Remove file from queue if not uploading */}
+                      {file.status !== 'uploading' && (
+                        <Button variant="ghost" size="icon" onClick={() => removeFile(file.id)} className="h-7 w-7">
+                          <Trash2 className="h-4 w-4 text-destructive" />
+                        </Button>
+                      )}
                     </div>
                   </div>
                 ))}
