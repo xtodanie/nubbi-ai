@@ -1,7 +1,7 @@
 // src/app/api/onboarding-test-data/route.ts
 
 import { NextRequest, NextResponse } from "next/server";
-import { generateOnboardingTestData } from "@/ai/flows/generate-onboarding-test-data";
+import { generateOnboardingTestData } from "@/ai/flows/quiz/generate-onboarding-test-data";
 
 // Opcional: protege solo para POST
 export async function POST(req: NextRequest) {

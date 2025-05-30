@@ -8,7 +8,7 @@ import { useToast } from "@/hooks/use-toast";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Bot, Loader2, Send, User } from "lucide-react";
 import React, { useState, useRef, useEffect } from "react";
-import { answerNewHireQuestion, type AnswerNewHireQuestionInput, type AnswerNewHireQuestionOutput } from "@/ai/flows/answer-new-hire-question";
+import { answerNewHireQuestion, type AnswerNewHireQuestionInput, type AnswerNewHireQuestionOutput } from "@/ai/flows/social/answer-new-hire-question";
 import { marked } from 'marked'; // For rendering markdown if AI responses include it
 
 interface Message {

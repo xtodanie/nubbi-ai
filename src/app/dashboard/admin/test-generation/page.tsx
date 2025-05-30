@@ -8,7 +8,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
 import { BookOpenCheck, Loader2, Wand2 } from "lucide-react";
 import React, { useState } from "react";
-import { generateOnboardingTestData, type GenerateOnboardingTestDataInput, type GenerateOnboardingTestDataOutput } from "@/ai/flows/generate-onboarding-test-data";
+import { generateOnboardingTestData, type GenerateOnboardingTestDataInput, type GenerateOnboardingTestDataOutput } from "@/ai/flows/quiz/generate-onboarding-test-data";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
 

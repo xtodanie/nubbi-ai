@@ -9,7 +9,7 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Progress } from "@/components/ui/progress";
 import { useToast } from "@/hooks/use-toast";
 import { Input } from "@/components/ui/input";
-import { generateAdaptiveQuiz, type GenerateAdaptiveQuizInput, type GenerateAdaptiveQuizOutput } from "@/ai/flows/generate-adaptive-quiz";
+import { generateAdaptiveQuiz, type GenerateAdaptiveQuizInput, type GenerateAdaptiveQuizOutput } from "@/ai/flows/quiz/generate-adaptive-quiz";
 import type { QuizQuestion } from "@/types";
 import { CheckCircle, ChevronLeft, ChevronRight, GraduationCap, Loader2, Sparkles, XCircle } from "lucide-react";
 import React, { useState } from "react";
